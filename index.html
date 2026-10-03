@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MailSentry — Email Classifier</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --ink: #1c1c1a; --muted: #6b6b64;
+    --line: #e3e2dd; --accent: #a8532e; --spam: #b3432f; --ham: #3f6b4f;
+    --spam-bg: #fbe9e5; --ham-bg: #e9f2ec;
+    font-size: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #171614; --panel: #211f1c; --ink: #ece9e3; --muted: #a39d92;
+      --line: #35332e; --accent: #d98a62; --spam: #e07a63; --ham: #7fb897;
+      --spam-bg: #3a2420; --ham-bg: #1f2e25;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #171614; --panel: #211f1c; --ink: #ece9e3; --muted: #a39d92;
+    --line: #35332e; --accent: #d98a62; --spam: #e07a63; --ham: #7fb897;
+    --spam-bg: #3a2420; --ham-bg: #1f2e25;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: Georgia, 'Times New Roman', serif;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  .sub { color: var(--muted); font-size: .9rem; margin: 0 0 1.75rem; }
+  .tabs { display: flex; gap: .5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--line); }
+  .tab {
+    font-family: inherit; font-size: .95rem; background: none; border: none;
+    padding: .6rem .9rem; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent;
+  }
+  .tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin: 1rem 0 .3rem; }
+  input, textarea {
+    width: 100%; font-family: inherit; font-size: .95rem; padding: .6rem .7rem;
+    background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px;
+  }
+  textarea { resize: vertical; min-height: 110px; }
+  button.go {
+    margin-top: 1.25rem; font-family: inherit; font-size: .95rem; cursor: pointer;
+    background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: .65rem 1.3rem;
+  }
+  button.go:active { opacity: .85; }
+  .result { margin-top: 1.5rem; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: none; }
+  .result.show { display: block; }
+  .verdict { padding: .9rem 1.1rem; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; }
+  .verdict.spam { background: var(--spam-bg); color: var(--spam); }
+  .verdict.ham { background: var(--ham-bg); color: var(--ham); }
+  .result-body { padding: .9rem 1.1rem; font-size: .9rem; color: var(--muted); }
+  .result-body b { color: var(--ink); }
+  table { width: 100%; border-collapse: collapse; margin-top: 1.25rem; font-size: .88rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: normal; }
+  .tag { padding: .15rem .5rem; border-radius: 4px; font-size: .8rem; }
+  .tag.spam { background: var(--spam-bg); color: var(--spam); }
+  .tag.ham { background: var(--ham-bg); color: var(--ham); }
+  .summary { margin-top: .9rem; color: var(--muted); font-size: .88rem; }
+  .overflow { overflow-x: auto; }
+  .hint { font-size: .78rem; color: var(--muted); margin-top: .4rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MailSentry</h1>
+  <p class="sub">Live demo of the C++ mini project's spam-scoring algorithm — same weighted keyword logic, ported to run in the browser.</p>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="single">Single email</button>
+    <button class="tab" data-tab="batch">Batch (multiple)</button>
+  </div>
+
+  <div class="panel active" id="panel-single">
+    <label for="s-from">Sender</label>
+    <input id="s-from" placeholder="promo@dealsite.com">
+    <label for="s-subj">Subject</label>
+    <input id="s-subj" placeholder="Congratulations! You WON a free prize">
+    <label for="s-body">Body</label>
+    <textarea id="s-body" placeholder="Click here now to claim your free cash prize, act now!!!"></textarea>
+    <button class="go" onclick="classifySingle()">Classify</button>
+
+    <div class="result" id="single-result">
+      <div class="verdict" id="single-verdict"></div>
+      <div class="result-body" id="single-detail"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-batch">
+    <label for="b-input">One email per line, format: <code>sender|subject|body</code></label>
+    <textarea id="b-input" style="min-height:160px"
+      placeholder="lottery@unknown.com|You WON a free prize!!!|Click here now to claim your free cash prize, act now!!!
+hr@college.edu|Meeting reschedule|Can we move tomorrow's meeting to 3 PM?"></textarea>
+    <div class="hint">Paste as many lines as you like, then classify them all at once.</div>
+    <button class="go" onclick="classifyBatch()">Classify all</button>
+
+    <div class="overflow">
+      <table id="batch-table" style="display:none">
+        <thead><tr><th>Sender</th><th>Subject</th><th>Verdict</th><th>Score</th></tr></thead>
+        <tbody id="batch-body"></tbody>
+      </table>
+    </div>
+    <div class="summary" id="batch-summary"></div>
+  </div>
+</div>
+
+<script>
+  // --- Mirrors the C++ SpamDetector keyword weights exactly ---
+  const WEIGHTS = {
+    "free": 3, "win": 3, "winner": 3, "lottery": 4, "prize": 3,
+    "urgent": 2, "click": 2, "click here": 4, "cash": 3, "credit": 2,
+    "loan": 2, "offer": 2, "discount": 2, "guarantee": 2,
+    "congratulations": 3, "password": 2, "verify": 2, "account": 1,
+    "suspended": 3, "million": 3, "money": 2, "act now": 3,
+    "limited time": 2, "buy now": 2
+  };
+  const THRESHOLD = 5;
+
+  function computeScore(text) {
+    const lower = text.toLowerCase();
+    let score = 0;
+    const matched = [];
+    for (const [kw, weight] of Object.entries(WEIGHTS)) {
+      let pos = lower.indexOf(kw);
+      let count = 0;
+      while (pos !== -1) {
+        score += weight;
+        count++;
+        pos = lower.indexOf(kw, pos + kw.length);
+      }
+      if (count > 0) matched.push(`${kw} (x${count})`);
+    }
+    const exclaims = (text.match(/!/g) || []).length;
+    if (exclaims >= 3) { score += 2; matched.push("excessive '!' usage"); }
+    return { score, matched, isSpam: score >= THRESHOLD };
+  }
+
+  function classifySingle() {
+    const from = document.getElementById('s-from').value || "unknown@unknown.com";
+    const subj = document.getElementById('s-subj').value || "(no subject)";
+    const body = document.getElementById('s-body').value || "";
+    const r = computeScore(subj + " " + body);
+
+    const verdictEl = document.getElementById('single-verdict');
+    verdictEl.className = 'verdict ' + (r.isSpam ? 'spam' : 'ham');
+    verdictEl.innerHTML = `<span>${r.isSpam ? 'SPAM' : 'HAM'}</span><span>score ${r.score}</span>`;
+
+    document.getElementById('single-detail').innerHTML =
+      `<b>From:</b> ${escapeHtml(from)}<br><b>Subject:</b> ${escapeHtml(subj)}<br>` +
+      `<b>Matched keywords:</b> ${r.matched.length ? escapeHtml(r.matched.join(', ')) : 'none'}`;
+
+    document.getElementById('single-result').classList.add('show');
+  }
+
+  function classifyBatch() {
+    const lines = document.getElementById('b-input').value.split('\n').map(l => l.trim()).filter(Boolean);
+    const tbody = document.getElementById('batch-body');
+    tbody.innerHTML = '';
+    let spamCount = 0, hamCount = 0;
+
+    for (const line of lines) {
+      const parts = line.split('|');
+      if (parts.length < 3) continue;
+      const [from, subj, ...rest] = parts;
+      const body = rest.join('|');
+      const r = computeScore(subj + " " + body);
+      r.isSpam ? spamCount++ : hamCount++;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td>${escapeHtml(from.trim())}</td><td>${escapeHtml(subj.trim())}</td>` +
+        `<td><span class="tag ${r.isSpam ? 'spam' : 'ham'}">${r.isSpam ? 'SPAM' : 'HAM'}</span></td>` +
+        `<td>${r.score}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    document.getElementById('batch-table').style.display = lines.length ? 'table' : 'none';
+    document.getElementById('batch-summary').textContent =
+      lines.length ? `Summary: ${spamCount} spam, ${hamCount} ham.` : 'No valid lines found.';
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
