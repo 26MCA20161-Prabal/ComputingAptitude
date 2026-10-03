@@ -1,6 +1,0 @@
-lottery@unknown.com|You have WON a free prize!!!|Congratulations winner! Click here now to claim your free cash prize before it expires.
-alerts@bank-secure.com|URGENT: verify your account|Your account has been suspended. Verify your password immediately to avoid loss of access.
-hr@college.edu|Meeting reschedule|Hi team, can we move tomorrow's meeting to 3 PM? Let me know if that works.
-friend@gmail.com|Notes from class|Hey, here are the notes from today's data structures lecture, let me know if anything is missing.
-deals@shopfast.com|Limited time offer just for you|Buy now and get huge discount, guarantee lowest price, act now before offer ends!!!
-prof.sharma@college.edu|Assignment deadline reminder|This is a reminder that your assignment submission deadline is next Monday.
