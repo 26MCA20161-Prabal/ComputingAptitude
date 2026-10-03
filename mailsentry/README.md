@@ -85,19 +85,6 @@ Enter filename (e.g. email.txt): sample_emails/spam_example.txt
 After classifying, you'll be asked if you want to save that email into
 `mailbox.txt` for future batch runs.
 
-## What it demonstrates (for your report / viva)
-
-- **Classes & objects**: `Email`, `SpamDetector`, `EmailList`, `MailFetcher`,
-  `EmailFilterSystem`
-- **Pointers & dynamic memory**: `Email*` objects created with `new` and
-  freed with `delete`; a singly linked list (`EmailNode* head/next`) built
-  from scratch instead of using `std::vector`/`std::list`; a heap-allocated
-  keyword map inside `SpamDetector`, freed in its destructor
-- **File handling**: reading/writing `mailbox.txt`, `inbox_output.txt`,
-  `spam_output.txt`, and arbitrary single-email files
-- **Classification logic**: weighted keyword scoring against a threshold,
-  plus a simple heuristic (excessive `!!!` usage)
-
 ## Notes
 
 - Everything runs locally — no real email account, credentials, or
